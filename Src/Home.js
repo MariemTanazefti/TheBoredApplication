@@ -1,22 +1,31 @@
-import { View, Text,StyleSheet } from 'react-native'
+import {View, Text, StyleSheet, Platform} from 'react-native'
 import React, { useEffect, useState } from 'react'
 import Icon from 'react-native-vector-icons/AntDesign';
 import { MaterialIcons, AntDesign, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SQLite from 'expo-sqlite';
-import { openDatabase } from 'expo-sqlite';
-var db= openDatabase({name:'example.db'})
 
+//function to open data base
+function openDatabase() {
+    if (Platform.OS === "web") {
+        return {
+            transaction: () => {
+                return {
+                    executeSql: () => {},
+                };
+            },
+        };
+    }
+
+    const db = SQLite.openDatabase("example.db");
+    return db;
+}
+const db = openDatabase();
 
 const Home = ({navigation}) => {
     const [data,setData]=useState([])
     const [isLoading, setLoading] = useState(true);
     const [activity,setActivity]=useState("");
-    const [type,setType]=useState("");
-    const [participants,setParticipants]=useState("");
-    const [price,setPrice]=useState("");
-    const [link,setLink]=useState("");
-    const [key,setKey]=useState("");
-    const [accessibility,setAccessibility]=useState("");
+
      
 
 
@@ -35,33 +44,20 @@ const Home = ({navigation}) => {
      useEffect(() => {
        GetData();
         db.transaction(tx => {
-        tx.executeSql('CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, activity VARCHAR(255), type VARCHAR(255), participants INTEGER, price INTEGER, link VARCHAR(255), key INTEGER, accessibility INTEGER)')
+        tx.executeSql('CREATE TABLE IF NOT EXISTS citations (id INTEGER PRIMARY KEY AUTOINCREMENT, activity VARCHAR(255))')
       });
-  
-     /*  db.transaction(tx => {
-        tx.executeSql('SELECT * FROM data', null,
-          (txObj, resultSet) => setData(resultSet.rows._array),
-          (txObj, error) => console.log(error)
-        );
-      });  */
-  
       setLoading(false); 
      }, []);
     
       const addFavoriteData = () => {
-        db.transaction(function (tx) {
-          console.log("hello")
-          tx.executeSql('INSERT INTO data (activity,type,participants,price,link,key,accessibility) values (?,?,?,?,?,?,?)', 
-          [activity,type,participants,price,link,key,accessibility],
-          (tx, results) => {
-            console.log('Results', results.rowsAffected);
-            if (results.rowsAffected > 0) {
-              alert('Data Inserted Successfully....');
-            } 
-            else alert('Failed....');
-          }
-        );}
-          )
+          db.transaction(
+              (tx) => {
+                  tx.executeSql("insert into citations (activity) values (?)", [data.activity]);
+                  tx.executeSql("select * from citations", [], (_, { rows }) =>
+                      console.log(JSON.stringify(rows))
+                  );
+              },
+          );
         
       }  
     
@@ -69,13 +65,7 @@ const Home = ({navigation}) => {
     <View style={styles.container}>
       <Icon style={styles.icon} name="smileo" size={40} color="#5b3a70" />
       <View style={styles.bodyHome}>
-      <Text style={styles.data}>activity: {data.activity}</Text>
-      <Text style={styles.data}>type: {data.type}</Text>
-      <Text style={styles.data}>participants: {data.participants}</Text>
-      <Text style={styles.data}>price: {data.price}</Text>
-      <Text style={styles.data}>link: {data.link}</Text>
-      <Text style={styles.data}>key: {data.key}</Text>
-      <Text style={styles.data}>accessibility: {data.accessibility}</Text> 
+      <Text style={styles.data}>{data.activity}</Text>
      
       </View>
       <View style={styles.footer}>
@@ -107,7 +97,9 @@ const styles = StyleSheet.create({
     },
     data:{
         textAlign:'center',
-        //marginTop:"30%"
+        //marginTop:"30%",
+        fontSize:50
+        
     },
     footer:{
         flexDirection: "row",

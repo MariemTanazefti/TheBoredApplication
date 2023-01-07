@@ -1,73 +1,120 @@
-import { View, Text,FlatList ,ActivityIndicator} from 'react-native'
+import { View, Text,FlatList ,ActivityIndicator,StyleSheet, TouchableOpacity} from 'react-native'
 import React, { useEffect, useState } from 'react'
-import * as SQLite from 'expo-sqlite';
 import { useIsFocused } from '@react-navigation/native';
-import { openDatabase } from 'expo-sqlite';
-var db= openDatabase({name:'example.db'})
+import { SafeAreaView } from 'react-native-safe-area-context'
+
+
+import * as SQLite from "expo-sqlite";
+
+function openDatabase() {
+    if (Platform.OS === "web") {
+        return {
+            transaction: () => {
+                return {
+                    executeSql: () => {},
+                };
+            },
+        };
+    }
+
+    const db = SQLite.openDatabase("example.db");
+    return db;
+}
+
+const db = openDatabase();
 
 const LikeCitation = () => {
     const [data,setData]=useState([])
     const [isLoading, setLoading] = useState(true);
     const isFocused = useIsFocused()
     const [activity,setActivity]=useState("");
-    const [type,setType]=useState("");
-    const [participants,setParticipants]=useState("");
-    const [price,setPrice]=useState("");
-    const [link,setLink]=useState("");
-    const [key,setKey]=useState("");
-    const [accessibility,setAccessibility]=useState("");
 
-    const viewData = () => {
- 
-      db.transaction((tx) => {
-        tx.executeSql(
-          'SELECT * FROM data',
-          [],
-          (tx, results) => {
-            var temp = [];
-            for (let i = 0; i < results.rows.length; ++i)
-              temp.push(results.rows.item(i));
-            console.log(temp);
-          }
-        );
+
+    const getData = () => {
+      db.transaction(
+          (tx) => {
+              tx.executeSql("select * from citations", [], (_, { rows }) =>
+              setData(rows._array)
+              );
+          },
+      );
+    
+  }  
+  const deleteData=(id)=>{
+    db.transaction(
+      tx => {
+        tx.executeSql(`delete from citations where id = ?;`, [id]);
+      }, null, getData
+    )    
+
+  }
+    useEffect(() => {
+      getData()
+      db.transaction(tx => {
+        tx.executeSql('CREATE TABLE IF NOT EXISTS citations (id INTEGER PRIMARY KEY AUTOINCREMENT, activity VARCHAR(255))')
       });
-   
-    }
-      useEffect(() => {
-        viewData();
-      }, []);
+      setLoading(false); 
+     
+  }, []);
+
+
+  
+  if (data === null || data.length === 0) {
+    return null;
+}
 
       
 
   return (
-    <View style={{ flex: 1, padding: 24 }}>
-       {isLoading ? <ActivityIndicator /> : (
+    <SafeAreaView style={styles.container} >
+    
       <FlatList
         data={data}
-        renderItem={({item, index}) => {
-          return (
-            <View style={styles.userItem}>
-                    <Text>hello</Text>
-
-              <Text style={styles.itemText}>activity:{item.activity}</Text>
-              <Text style={styles.itemText}>type: {item.type}</Text>
-              <Text style={styles.itemText}>participants{ item.participants}</Text>
-              <Text style={styles.itemText}>price: {item.price}</Text>
-              <Text style={styles.itemText}>link: {item.link}</Text>
-              <Text style={styles.itemText}>key: {item.key}</Text>
-              <Text style={styles.itemText}> accessibility{item.accessibility}</Text>
-
-
-
-
-              </View>
-          )}}
-          />
-       )}
+        renderItem={({ item }) => (
+          <View style={styles.itemContainer} key={item.id}>
+          <Text style={styles.itemName}>{item.activity}</Text>
+          <TouchableOpacity style={styles.Deletebutton} onPress={() => deleteData(item.id)}>
+            <Text style={{ textAlign: "center", color: "white", fontSize: 15, fontWeight: "150", }} > Delete</Text>
+        </TouchableOpacity>
+          </View>
+          
+         
+        )}
+        />
+    
    
     
-    </View>
+    </SafeAreaView>
   )
 }
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: "column",
+    padding: '3%'
+  },
+   itemContainer: {
+    borderWidth: 1,
+    borderColor: "#b556b6",
+    marginTop: 15
+  },
+    itemName: {
+    fontWeight: "bold",
+    padding: '3%',
+    fontSize: 22,
+
+  },
+  Deletebutton: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "red",
+    width: "30%",
+    height: 30,
+    marginTop: 5,
+    marginRight: 50,
+
+
+  },
+})
 
 export default LikeCitation
